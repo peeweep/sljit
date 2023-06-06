@@ -11537,7 +11537,8 @@ static void test92(void)
 {
 #if (defined SLJIT_CONFIG_X86 && SLJIT_CONFIG_X86) \
 		|| (defined SLJIT_CONFIG_ARM && SLJIT_CONFIG_ARM) \
-		|| (defined SLJIT_CONFIG_S390X && SLJIT_CONFIG_S390X)
+		|| (defined SLJIT_CONFIG_S390X && SLJIT_CONFIG_S390X) \
+		|| (defined SLJIT_CONFIG_RISCV && SLJIT_CONFIG_RISCV)
 	/* Test atomic load and store. */
 	executable_code code;
 	struct sljit_compiler *compiler = sljit_create_compiler(NULL, NULL);

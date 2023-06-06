@@ -77,6 +77,23 @@ static const sljit_u8 freg_map[SLJIT_NUMBER_OF_FLOAT_REGISTERS + 3] = {
 #define F12(f)		((sljit_ins)(f) << 20)
 #define F7(f)		((sljit_ins)(f) << 25)
 
+// lr double word
+#define LRD         (F7(0x8) | F3(0x3) | OPC(0x2F))
+#define LRDAQ       (F7(0xA) | F3(0x3) | OPC(0x2F))
+#define LRDAQRL     (F7(0xB) | F3(0x3) | OPC(0x2F))
+// lr word
+#define LRW         (F7(0x8) | F3(0x2) | OPC(0x2F))
+#define LRWAQ       (F7(0xA) | F3(0x2) | OPC(0x2F))
+#define LRWAQRL     (F7(0xB) | F3(0x2) | OPC(0x2F))
+// sc double word
+#define SCD         (F7(0xC) | F3(0x3) | OPC(0x2F))
+#define SCDRL       (F7(0xD) | F3(0x3) | OPC(0x2F))
+#define SCDAQRL     (F7(0xF) | F3(0x3) | OPC(0x2F))
+// sc word
+#define SCW         (F7(0xC) | F3(0x2) | OPC(0x2F))
+#define SCWRL       (F7(0xD) | F3(0x2) | OPC(0x2F))
+#define SCWAQRL     (F7(0xF) | F3(0x2) | OPC(0x2F))
+
 #define ADD		(F7(0x0) | F3(0x0) | OPC(0x33))
 #define ADDI		(F3(0x0) | OPC(0x13))
 #define AND		(F7(0x0) | F3(0x7) | OPC(0x33))
@@ -2441,8 +2458,10 @@ static sljit_ins get_jump_instruction(sljit_s32 type)
 {
 	switch (type) {
 	case SLJIT_EQUAL:
+	case SLJIT_ATOMIC_NOT_STORED:
 		return BNE | RS1(EQUAL_FLAG) | RS2(TMP_ZERO);
 	case SLJIT_NOT_EQUAL:
+	case SLJIT_ATOMIC_STORED:
 		return BEQ | RS1(EQUAL_FLAG) | RS2(TMP_ZERO);
 	case SLJIT_LESS:
 	case SLJIT_GREATER:
@@ -3004,4 +3023,33 @@ SLJIT_API_FUNC_ATTRIBUTE struct sljit_put_label* sljit_emit_put_label(struct slj
 SLJIT_API_FUNC_ATTRIBUTE void sljit_set_const(sljit_uw addr, sljit_sw new_constant, sljit_sw executable_offset)
 {
 	sljit_set_jump_addr(addr, (sljit_uw)new_constant, executable_offset);
+}
+
+#if (defined SLJIT_CONFIG_RISCV_32 && SLJIT_CONFIG_RISCV_32)
+#define STACK_SC    SCW
+#define STACK_LR    LRW
+#else
+#define STACK_SC    SCD
+#define STACK_LR    LRD
+#endif
+
+SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_atomic_load(struct sljit_compiler *compiler, sljit_s32 op,
+	sljit_s32 dst_reg,
+	sljit_s32 mem_reg)
+{
+	CHECK_ERROR();
+	CHECK(check_sljit_emit_atomic_load(compiler, op, dst_reg, mem_reg));
+
+	return push_inst(compiler, STACK_LR | RD(dst_reg) | RS1(mem_reg));
+}
+
+SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_atomic_store(struct sljit_compiler *compiler, sljit_s32 op,
+	sljit_s32 src_reg,
+	sljit_s32 mem_reg,
+	sljit_s32 temp_reg)
+{
+	CHECK_ERROR();
+	CHECK(check_sljit_emit_atomic_store(compiler, op, src_reg, mem_reg, temp_reg));
+
+	return push_inst(compiler, STACK_SC | RD(TMP_REG1) | RS2(src_reg) | RS1(mem_reg));
 }
